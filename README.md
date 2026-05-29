@@ -10,28 +10,32 @@ Design, implement, audit, and test command-line interfaces intended to be consum
 
 ## Install
 
+This repository is published at `github.com/mustafamohsen/skills` and can be installed with Vercel's `skills` CLI.
+
 List available skills:
 
 ```bash
-npx skills add <owner>/<repo> --list
+npx skills add mustafamohsen/skills --list
 ```
 
 Install the Agent-First CLI skill:
 
 ```bash
-npx skills add <owner>/<repo> --skill agent-first-cli
-```
-
-Install from a local checkout:
-
-```bash
-npx skills add . --skill agent-first-cli
+npx skills add mustafamohsen/skills --skill agent-first-cli
 ```
 
 Install all skills from this repository:
 
 ```bash
-npx skills add <owner>/<repo> --skill '*'
+npx skills add mustafamohsen/skills --skill '*'
+```
+
+Install from a local checkout:
+
+```bash
+git clone https://github.com/mustafamohsen/skills.git
+cd skills
+npx skills add . --skill agent-first-cli
 ```
 
 ## Repository layout
