@@ -1,6 +1,6 @@
 # Skills
 
-A repository of reusable AI agent skills installable with Vercel's [`skills`](https://github.com/vercel-labs/skills) CLI.
+A repository of reusable AI agent skills.
 
 ## Available skills
 
@@ -10,7 +10,7 @@ Design, implement, audit, and test command-line interfaces intended to be consum
 
 ## Install
 
-This repository is published at `github.com/mustafamohsen/skills` and can be installed with Vercel's `skills` CLI.
+This repository is published at `github.com/mustafamohsen/skills`.
 
 List available skills:
 
