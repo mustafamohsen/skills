@@ -1,0 +1,36 @@
+{
+  "tests": [
+    {
+      "name": "version_json",
+      "args": ["version", "--output", "json"],
+      "expect_exit": [0],
+      "expect_json_stdout": true,
+      "expect_status": ["success"],
+      "timeout_seconds": 10
+    },
+    {
+      "name": "capabilities_json",
+      "args": ["capabilities", "--output", "json"],
+      "expect_exit": [0],
+      "expect_json_stdout": true,
+      "expect_status": ["success"],
+      "timeout_seconds": 10
+    },
+    {
+      "name": "bad_flag_json_error",
+      "args": ["--definitely-not-a-real-flag", "--output", "json"],
+      "expect_exit": [2, 12],
+      "expect_json_stdout": true,
+      "expect_status": ["error"],
+      "timeout_seconds": 10
+    },
+    {
+      "name": "doctor_json",
+      "args": ["doctor", "--output", "json"],
+      "expect_exit": [0, 1, 3, 4, 7],
+      "expect_json_stdout": true,
+      "expect_status": ["success", "partial", "error"],
+      "timeout_seconds": 20
+    }
+  ]
+}

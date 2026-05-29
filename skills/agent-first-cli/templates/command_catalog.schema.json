@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/agent-first-cli/command-catalog.schema.json",
+  "title": "Agent-First CLI Command Catalog",
+  "type": "object",
+  "required": ["tool", "commands"],
+  "properties": {
+    "tool": {"type": "string", "minLength": 1},
+    "description": {"type": "string"},
+    "schema_version": {"type": "string"},
+    "global_options": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/option"}
+    },
+    "output_formats": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "error_codes": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/command"}
+    }
+  },
+  "$defs": {
+    "option": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "type": {"type": "string", "enum": ["string", "boolean", "integer", "number", "enum", "path", "duration", "array"]},
+        "required": {"type": "boolean", "default": false},
+        "default": {},
+        "values": {"type": "array", "items": {"type": "string"}},
+        "description": {"type": "string"},
+        "sensitive": {"type": "boolean", "default": false}
+      },
+      "additionalProperties": true
+    },
+    "command": {
+      "type": "object",
+      "required": ["name", "description"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "shell": {"type": "string"},
+        "description": {"type": "string", "minLength": 1},
+        "reads_state": {"type": "boolean"},
+        "mutates_state": {"type": "boolean", "default": false},
+        "destructive": {"type": "boolean", "default": false},
+        "long_running": {"type": "boolean", "default": false},
+        "large_output": {"type": "boolean", "default": false},
+        "requires_auth": {"type": "boolean", "default": false},
+        "options": {"type": "array", "items": {"$ref": "#/$defs/option"}},
+        "output_formats": {"type": "array", "items": {"type": "string"}},
+        "error_codes": {"type": "array", "items": {"type": "string"}},
+        "safety": {
+          "type": "object",
+          "properties": {
+            "supports_plan": {"type": "boolean"},
+            "supports_dry_run": {"type": "boolean"},
+            "requires_confirmation": {"type": "boolean"},
+            "supports_idempotency_key": {"type": "boolean"},
+            "reports_blast_radius": {"type": "boolean"},
+            "reports_rollback": {"type": "boolean"}
+          },
+          "additionalProperties": true
+        },
+        "pagination": {
+          "type": "object",
+          "properties": {
+            "supports_limit": {"type": "boolean"},
+            "supports_cursor": {"type": "boolean"},
+            "supports_filter": {"type": "boolean"},
+            "supports_fields": {"type": "boolean"}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

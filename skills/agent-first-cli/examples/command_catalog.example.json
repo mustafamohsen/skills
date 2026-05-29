@@ -1,0 +1,274 @@
+{
+  "tool": "agentctl",
+  "description": "Example agent-first CLI for project and deployment operations.",
+  "schema_version": "1.0",
+  "output_formats": [
+    "json",
+    "jsonl",
+    "text"
+  ],
+  "global_options": [
+    {
+      "name": "output",
+      "type": "enum",
+      "values": [
+        "json",
+        "jsonl",
+        "text"
+      ],
+      "description": "Output format."
+    },
+    {
+      "name": "agent",
+      "type": "boolean",
+      "description": "Equivalent to --output json --no-input --no-color --log-level warn."
+    },
+    {
+      "name": "no-input",
+      "type": "boolean",
+      "description": "Fail instead of prompting."
+    },
+    {
+      "name": "no-color",
+      "type": "boolean",
+      "description": "Disable terminal color."
+    },
+    {
+      "name": "quiet",
+      "type": "boolean",
+      "description": "Suppress non-essential logs."
+    },
+    {
+      "name": "log-level",
+      "type": "enum",
+      "values": [
+        "error",
+        "warn",
+        "info",
+        "debug",
+        "trace"
+      ],
+      "description": "Diagnostic verbosity."
+    },
+    {
+      "name": "config",
+      "type": "path",
+      "description": "Config file path."
+    },
+    {
+      "name": "timeout",
+      "type": "duration",
+      "description": "Maximum runtime."
+    },
+    {
+      "name": "trace-id",
+      "type": "string",
+      "description": "Caller-provided trace identifier."
+    }
+  ],
+  "error_codes": [
+    "INVALID_USAGE",
+    "VALIDATION_FAILED",
+    "CONFIGURATION_ERROR",
+    "AUTHENTICATION_REQUIRED",
+    "PERMISSION_DENIED",
+    "RESOURCE_NOT_FOUND",
+    "AMBIGUOUS_RESOURCE",
+    "CONFLICT",
+    "UNSAFE_OPERATION",
+    "NETWORK_ERROR",
+    "TIMEOUT",
+    "RATE_LIMITED",
+    "PARTIAL_FAILURE",
+    "UNSUPPORTED_OPERATION",
+    "INTERNAL_ERROR"
+  ],
+  "commands": [
+    {
+      "name": "version",
+      "shell": "agentctl version",
+      "description": "Return CLI, API, and schema versions.",
+      "reads_state": false,
+      "mutates_state": false,
+      "destructive": false,
+      "long_running": false,
+      "large_output": false,
+      "requires_auth": false,
+      "options": [],
+      "output_formats": [
+        "json",
+        "text"
+      ],
+      "error_codes": [
+        "INTERNAL_ERROR"
+      ]
+    },
+    {
+      "name": "doctor",
+      "shell": "agentctl doctor",
+      "description": "Run environment and configuration checks.",
+      "reads_state": false,
+      "mutates_state": false,
+      "destructive": false,
+      "long_running": false,
+      "large_output": false,
+      "requires_auth": false,
+      "options": [],
+      "output_formats": [
+        "json",
+        "text"
+      ],
+      "error_codes": [
+        "INTERNAL_ERROR"
+      ]
+    },
+    {
+      "name": "commands",
+      "shell": "agentctl commands",
+      "description": "Return the machine-readable command catalog.",
+      "reads_state": false,
+      "mutates_state": false,
+      "destructive": false,
+      "long_running": false,
+      "large_output": false,
+      "requires_auth": false,
+      "options": [],
+      "output_formats": [
+        "json",
+        "text"
+      ],
+      "error_codes": [
+        "INTERNAL_ERROR"
+      ]
+    },
+    {
+      "name": "capabilities",
+      "shell": "agentctl capabilities",
+      "description": "Return machine-readable feature support and command availability.",
+      "reads_state": false,
+      "mutates_state": false,
+      "destructive": false,
+      "long_running": false,
+      "large_output": false,
+      "requires_auth": false,
+      "options": [],
+      "output_formats": [
+        "json",
+        "text"
+      ],
+      "error_codes": [
+        "INTERNAL_ERROR"
+      ]
+    },
+    {
+      "name": "project.list",
+      "shell": "agentctl project list",
+      "description": "List projects visible to the current identity.",
+      "reads_state": true,
+      "mutates_state": false,
+      "destructive": false,
+      "long_running": false,
+      "large_output": true,
+      "requires_auth": true,
+      "options": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "description": "Maximum number of projects to return."
+        },
+        {
+          "name": "cursor",
+          "type": "string",
+          "description": "Pagination cursor."
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "description": "Filter expression."
+        },
+        {
+          "name": "fields",
+          "type": "array",
+          "description": "Fields to include."
+        }
+      ],
+      "pagination": {
+        "supports_limit": true,
+        "supports_cursor": true,
+        "supports_filter": true,
+        "supports_fields": true
+      },
+      "output_formats": [
+        "json",
+        "jsonl",
+        "text"
+      ],
+      "error_codes": [
+        "AUTHENTICATION_REQUIRED",
+        "PERMISSION_DENIED",
+        "VALIDATION_FAILED"
+      ]
+    },
+    {
+      "name": "project.delete",
+      "shell": "agentctl project delete",
+      "description": "Delete a project after plan/confirmation flow.",
+      "reads_state": true,
+      "mutates_state": true,
+      "destructive": true,
+      "long_running": true,
+      "large_output": false,
+      "requires_auth": true,
+      "options": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Stable project ID."
+        },
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "plan",
+            "apply"
+          ],
+          "required": true,
+          "description": "Preview or execute."
+        },
+        {
+          "name": "confirm",
+          "type": "string",
+          "description": "Confirmation token or exact project ID."
+        },
+        {
+          "name": "idempotency-key",
+          "type": "string",
+          "description": "Prevent duplicate delete operations on retry."
+        }
+      ],
+      "safety": {
+        "supports_plan": true,
+        "supports_dry_run": false,
+        "requires_confirmation": true,
+        "supports_idempotency_key": true,
+        "reports_blast_radius": true,
+        "reports_rollback": true
+      },
+      "output_formats": [
+        "json",
+        "text"
+      ],
+      "error_codes": [
+        "AUTHENTICATION_REQUIRED",
+        "PERMISSION_DENIED",
+        "RESOURCE_NOT_FOUND",
+        "UNSAFE_OPERATION",
+        "CONFLICT",
+        "TIMEOUT"
+      ],
+      "returns_operation_id": true,
+      "returns_status_command": true
+    }
+  ]
+}

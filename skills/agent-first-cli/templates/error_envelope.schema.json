@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/agent-first-cli/error-envelope.schema.json",
+  "title": "Agent-First CLI Error Object",
+  "type": "object",
+  "required": ["code", "message", "recoverable"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]+$",
+      "description": "Stable machine-readable error code."
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable error message."
+    },
+    "details": {
+      "type": "object",
+      "description": "Structured repair/debug context. Must not contain secrets."
+    },
+    "recoverable": {
+      "type": "boolean"
+    },
+    "suggested_actions": {
+      "type": "array",
+      "items": {"type": "string"},
+      "default": []
+    }
+  },
+  "additionalProperties": true
+}

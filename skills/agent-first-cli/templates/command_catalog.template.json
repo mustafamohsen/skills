@@ -1,0 +1,48 @@
+{
+  "tool": "mytool",
+  "description": "One-sentence description of the CLI.",
+  "schema_version": "1.0",
+  "output_formats": ["json", "jsonl", "text"],
+  "global_options": [
+    {"name": "output", "type": "enum", "values": ["json", "jsonl", "text"], "description": "Output format."},
+    {"name": "agent", "type": "boolean", "description": "Enable agent-safe defaults."},
+    {"name": "no-input", "type": "boolean", "description": "Fail instead of prompting."},
+    {"name": "no-color", "type": "boolean", "description": "Disable terminal colors."},
+    {"name": "timeout", "type": "duration", "description": "Maximum runtime."}
+  ],
+  "error_codes": [
+    "INVALID_USAGE",
+    "VALIDATION_FAILED",
+    "CONFIGURATION_ERROR",
+    "AUTHENTICATION_REQUIRED",
+    "PERMISSION_DENIED",
+    "RESOURCE_NOT_FOUND",
+    "AMBIGUOUS_RESOURCE",
+    "CONFLICT",
+    "UNSAFE_OPERATION",
+    "NETWORK_ERROR",
+    "TIMEOUT",
+    "RATE_LIMITED",
+    "PARTIAL_FAILURE",
+    "UNSUPPORTED_OPERATION",
+    "INTERNAL_ERROR"
+  ],
+  "commands": [
+    {
+      "name": "resource.action",
+      "shell": "mytool resource action",
+      "description": "Describe what this command does.",
+      "reads_state": true,
+      "mutates_state": false,
+      "destructive": false,
+      "long_running": false,
+      "large_output": false,
+      "requires_auth": false,
+      "options": [
+        {"name": "id", "type": "string", "required": true, "description": "Stable resource ID."}
+      ],
+      "output_formats": ["json", "text"],
+      "error_codes": ["RESOURCE_NOT_FOUND", "VALIDATION_FAILED"]
+    }
+  ]
+}

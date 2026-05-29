@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/agent-first-cli/result-envelope.schema.json",
+  "title": "Agent-First CLI Result Envelope",
+  "type": "object",
+  "required": ["status", "command", "metadata"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "partial", "error"]
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable machine command name, preferably resource.action."
+    },
+    "data": {
+      "description": "Command-specific result data. Null is allowed for errors."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1},
+          "details": {"type": "object"},
+          "impact": {"type": "string"}
+        },
+        "additionalProperties": true
+      },
+      "default": []
+    },
+    "error": {
+      "anyOf": [
+        {"type": "null"},
+        {"$ref": "error-envelope.schema.json"}
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["schema_version"],
+      "properties": {
+        "tool_version": {"type": "string"},
+        "schema_version": {"type": "string", "minLength": 1},
+        "api_version": {"type": "string"},
+        "duration_ms": {"type": "number", "minimum": 0},
+        "trace_id": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"status": {"const": "error"}}
+      },
+      "then": {
+        "required": ["error"],
+        "properties": {
+          "error": {"$ref": "error-envelope.schema.json"}
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}
