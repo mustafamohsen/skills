@@ -1,6 +1,6 @@
 ---
 name: slop-to-idiomatic
-description: Refactor existing AI-generated code into clear, conventional, language- and framework-idiomatic code while preserving its observable behavior and boundaries. User-invoked only; use only when the user explicitly invokes `$slop-to-idiomatic` or `/slop-to-idiomatic`, never automatically.
+description: Refactors existing AI-generated code into clear, conventional, language- and framework-idiomatic code while preserving its observable behavior and boundaries. User-invoked only; use only when the user explicitly invokes `$slop-to-idiomatic` or `/slop-to-idiomatic`, never automatically.
 user-invocable: true
 disable-model-invocation: true
 argument-hint: "[path, diff, or refactor scope]"
@@ -22,6 +22,8 @@ Always read [`references/refactor-workflow.md`](references/refactor-workflow.md)
 |---|---|
 | TypeScript or TSX | [`references/typescript.md`](references/typescript.md) |
 | React | [`references/react.md`](references/react.md), plus TypeScript when applicable |
+| Rust | [`references/rust.md`](references/rust.md) |
+| TanStack Start | [`references/tanstack-start.md`](references/tanstack-start.md), React, and TypeScript |
 
 When several apply, reconcile them in this order: repository conventions and supported versions, framework rules, language idioms, then general preferences. Never force a reference pattern that conflicts with the project's established architecture or version.
 

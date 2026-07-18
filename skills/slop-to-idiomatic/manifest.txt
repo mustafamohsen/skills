@@ -5,3 +5,5 @@ agents/openai.yaml
 references/refactor-workflow.md
 references/typescript.md
 references/react.md
+references/rust.md
+references/tanstack-start.md
