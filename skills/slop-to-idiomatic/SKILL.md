@@ -16,7 +16,12 @@ Run this skill only after explicit user invocation. If it was loaded implicitly,
 
 ## Load the minimum context
 
-Always read [`references/refactor-workflow.md`](references/refactor-workflow.md). Then read only the applicable language and framework idiom references included in this package.
+Always read [`references/refactor-workflow.md`](references/refactor-workflow.md). Then read only the applicable idiom references:
+
+| Code in scope | Read |
+|---|---|
+| TypeScript or TSX | [`references/typescript.md`](references/typescript.md) |
+| React | [`references/react.md`](references/react.md), plus TypeScript when applicable |
 
 When several apply, reconcile them in this order: repository conventions and supported versions, framework rules, language idioms, then general preferences. Never force a reference pattern that conflicts with the project's established architecture or version.
 

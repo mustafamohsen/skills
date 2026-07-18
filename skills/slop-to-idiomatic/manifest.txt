@@ -3,3 +3,5 @@ README.md
 manifest.txt
 agents/openai.yaml
 references/refactor-workflow.md
+references/typescript.md
+references/react.md
