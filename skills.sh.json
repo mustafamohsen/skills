@@ -5,6 +5,11 @@
       "title": "CLI Design",
       "description": "Skills for designing, auditing, and testing CLIs for agentic and automated consumers.",
       "skills": ["agent-first-cli"]
+    },
+    {
+      "title": "Code Quality",
+      "description": "Skills for behavior-preserving refactoring into language and framework idioms.",
+      "skills": ["slop-to-idiomatic"]
     }
   ]
 }

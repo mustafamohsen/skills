@@ -1,0 +1,5 @@
+SKILL.md
+README.md
+manifest.txt
+agents/openai.yaml
+references/refactor-workflow.md

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Slop to Idiomatic"
+  short_description: "Refactor generated code into ecosystem idioms"
+  default_prompt: "Use $slop-to-idiomatic to refactor the requested code while preserving its behavior and boundaries."
+policy:
+  allow_implicit_invocation: false
