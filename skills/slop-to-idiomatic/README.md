@@ -6,14 +6,15 @@ The package uses progressive disclosure:
 
 - `SKILL.md` contains the invocation gate, reference router, and non-negotiable rules.
 - `references/refactor-workflow.md` defines the behavior-preserving workflow and verification choices.
-- One language or framework reference is loaded only when its code is in scope.
+- Only applicable language and framework references are loaded for the code in scope.
 - `agents/openai.yaml` prevents implicit invocation in Codex; portable frontmatter does the same for compatible Agent Skills hosts.
 
 ## Included idiom references
 
+- C++
+- Rust
 - TypeScript
 - React
-- Rust
 - TanStack Start
 
 ## Invocation
