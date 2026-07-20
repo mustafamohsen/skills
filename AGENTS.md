@@ -87,3 +87,6 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Searching
 - Use brave search skills using the API key in the `.env`
+
+## Git workflow
+- Commit often and using conventional commits. Write descriptive messages. If major changes were made, write descriptive details in the description
