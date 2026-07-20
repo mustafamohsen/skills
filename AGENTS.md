@@ -83,3 +83,6 @@ When the user requests a durable behavior change, record it here or in the relev
 
 This project is not yet indexed. Before continuing you must scan the project, build the DOX tree and replace this message with the actual index. Go deep and scan files recursively to properly evaluate complexity and create nested DOX files where needed.
 <!--DOX end-->
+
+## Searching
+- Use brave search skills using the API key in the `.env`
