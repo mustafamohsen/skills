@@ -81,7 +81,8 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-This project is not yet indexed. Before continuing you must scan the project, build the DOX tree and replace this message with the actual index. Go deep and scan files recursively to properly evaluate complexity and create nested DOX files where needed.
+- [`.agents/AGENTS.md`](.agents/AGENTS.md) — project-local imported authoring helpers.
+- [`skills/AGENTS.md`](skills/AGENTS.md) — reusable skill packages and package-level contracts.
 <!--DOX end-->
 
 ## Searching
