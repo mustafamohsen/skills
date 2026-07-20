@@ -21,6 +21,7 @@ Always read [`references/refactor-workflow.md`](references/refactor-workflow.md)
 | Code in scope | Read |
 |---|---|
 | C++ translation units or headers compiled as C++ | [`references/cpp.md`](references/cpp.md) |
+| Python | [`references/python.md`](references/python.md) |
 | Rust | [`references/rust.md`](references/rust.md) |
 | TypeScript or TSX | [`references/typescript.md`](references/typescript.md) |
 | React | [`references/react.md`](references/react.md), plus TypeScript when applicable |

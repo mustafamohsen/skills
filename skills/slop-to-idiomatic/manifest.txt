@@ -4,6 +4,7 @@ manifest.txt
 agents/openai.yaml
 references/refactor-workflow.md
 references/cpp.md
+references/python.md
 references/rust.md
 references/typescript.md
 references/react.md
