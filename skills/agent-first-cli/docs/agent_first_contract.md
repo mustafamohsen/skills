@@ -200,6 +200,8 @@ Use documented, stable exit codes. A compact taxonomy is better than dozens of p
 | 12 | Unsupported operation |
 | 13 | Internal error |
 
+Use exit code `2` when a validation utility cannot interpret the structure of its own input, such as a malformed command catalog. Reserve exit code `8` for a well-formed command request that fails domain validation.
+
 The exit code gives the broad class. The JSON error code gives the precise machine-readable reason.
 
 ## Input modes
