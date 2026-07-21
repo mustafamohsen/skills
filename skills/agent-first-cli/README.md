@@ -10,6 +10,7 @@ The package follows progressive disclosure:
 - `templates/` contains machine-readable schema starting points.
 - `scripts/` contains small JSON-emitting tools for static linting and live CLI probes.
 - `examples/` contains runnable sample inputs for the scripts.
+- `tests/` contains zero-install black-box regression tests for the public scripts.
 
 ## Package layout
 
@@ -40,6 +41,8 @@ agent-first-cli-skill/
   scripts/
     afcli_probe.py
     afcli_schema_lint.py
+  tests/
+    test_afcli_schema_lint.py
 ```
 
 ## Typical uses
@@ -74,3 +77,11 @@ python scripts/afcli_probe.py --cmd "python -m mytool" --matrix examples/probe_m
 ```
 
 The scripts use only the Python standard library.
+
+## Verification
+
+From the repository root:
+
+```bash
+python3 -m unittest discover -s skills/agent-first-cli/tests -p 'test_*.py'
+```

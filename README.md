@@ -62,6 +62,7 @@ skills/
     scripts/
     tasks/
     templates/
+    tests/
   slop-to-idiomatic/
     SKILL.md
     README.md

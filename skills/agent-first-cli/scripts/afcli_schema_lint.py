@@ -50,6 +50,116 @@ def find_option(options: Iterable[Dict[str, Any]], name: str) -> Optional[Dict[s
     return None
 
 
+def structure_error(errors: List[Dict[str, str]], path: str, expected: str, value: Any) -> None:
+    errors.append(
+        {
+            "path": path,
+            "issue": f"Expected {expected}.",
+            "actual_type": type(value).__name__,
+        }
+    )
+
+
+def validate_string_list(value: Any, path: str, errors: List[Dict[str, str]]) -> None:
+    if not isinstance(value, list):
+        structure_error(errors, path, "an array", value)
+        return
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            structure_error(errors, f"{path}[{index}]", "a string", item)
+
+
+def validate_options(value: Any, path: str, errors: List[Dict[str, str]]) -> None:
+    if not isinstance(value, list):
+        structure_error(errors, path, "an array", value)
+        return
+    for index, option in enumerate(value):
+        option_path = f"{path}[{index}]"
+        if not isinstance(option, dict):
+            structure_error(errors, option_path, "an object", option)
+            continue
+        for key in ("name", "type", "description"):
+            if key in option and not isinstance(option[key], str):
+                structure_error(errors, f"{option_path}.{key}", "a string", option[key])
+        for key in ("required", "sensitive"):
+            if key in option and not isinstance(option[key], bool):
+                structure_error(errors, f"{option_path}.{key}", "a boolean", option[key])
+        if "values" in option:
+            validate_string_list(option["values"], f"{option_path}.values", errors)
+
+
+def validate_catalog_structure(catalog: Any) -> List[Dict[str, str]]:
+    errors: List[Dict[str, str]] = []
+    if not isinstance(catalog, dict):
+        structure_error(errors, "$", "an object", catalog)
+        return errors
+
+    for key in ("tool", "description", "schema_version"):
+        if key in catalog and not isinstance(catalog[key], str):
+            structure_error(errors, f"$.{key}", "a string", catalog[key])
+    for key in ("output_formats", "error_codes"):
+        if key in catalog:
+            validate_string_list(catalog[key], f"$.{key}", errors)
+    if "global_options" in catalog:
+        validate_options(catalog["global_options"], "$.global_options", errors)
+
+    if "commands" in catalog:
+        commands = catalog["commands"]
+        if not isinstance(commands, list):
+            structure_error(errors, "$.commands", "an array", commands)
+        else:
+            for index, command in enumerate(commands):
+                command_path = f"$.commands[{index}]"
+                if not isinstance(command, dict):
+                    structure_error(errors, command_path, "an object", command)
+                    continue
+                for key in ("name", "shell", "description"):
+                    if key in command and not isinstance(command[key], str):
+                        structure_error(errors, f"{command_path}.{key}", "a string", command[key])
+                for key in (
+                    "reads_state",
+                    "mutates_state",
+                    "destructive",
+                    "long_running",
+                    "large_output",
+                    "requires_auth",
+                ):
+                    if key in command and not isinstance(command[key], bool):
+                        structure_error(errors, f"{command_path}.{key}", "a boolean", command[key])
+                if "options" in command:
+                    validate_options(command["options"], f"{command_path}.options", errors)
+                for key in ("output_formats", "error_codes"):
+                    if key in command:
+                        validate_string_list(command[key], f"{command_path}.{key}", errors)
+                boolean_metadata = {
+                    "safety": (
+                        "supports_plan",
+                        "supports_dry_run",
+                        "requires_confirmation",
+                        "supports_idempotency_key",
+                        "reports_blast_radius",
+                        "reports_rollback",
+                    ),
+                    "pagination": (
+                        "supports_limit",
+                        "supports_cursor",
+                        "supports_filter",
+                        "supports_fields",
+                    ),
+                }
+                for key, boolean_fields in boolean_metadata.items():
+                    if key not in command:
+                        continue
+                    value = command[key]
+                    if not isinstance(value, dict):
+                        structure_error(errors, f"{command_path}.{key}", "an object", value)
+                        continue
+                    for field in boolean_fields:
+                        if field in value and not isinstance(value[field], bool):
+                            structure_error(errors, f"{command_path}.{key}.{field}", "a boolean", value[field])
+    return errors
+
+
 def issue(
     issues: List[Dict[str, Any]],
     severity: str,
@@ -313,6 +423,47 @@ def result_envelope(status: str, data: Dict[str, Any], error: Optional[Dict[str,
     }
 
 
+def process_catalog(catalog: Any, catalog_path: str, output_path: Optional[str], fail_on: str) -> int:
+    structure_errors = validate_catalog_structure(catalog)
+    if structure_errors:
+        envelope = result_envelope(
+            "error",
+            data={"catalog": catalog_path},
+            error={
+                "code": "CATALOG_INVALID",
+                "message": "Catalog structure is invalid.",
+                "details": {
+                    "catalog": catalog_path,
+                    "errors": structure_errors,
+                },
+                "recoverable": True,
+                "suggested_actions": ["Fix the reported catalog structure and run the linter again."],
+            },
+        )
+        print(json.dumps(envelope, indent=2, sort_keys=False))
+        return 2
+
+    issues = lint_catalog(catalog)
+    data = {
+        "catalog": catalog_path,
+        "summary": summarize(issues),
+        "issues": issues,
+    }
+    status = "success" if not issues else "partial"
+    envelope = result_envelope(status, data=data)
+    output = json.dumps(envelope, indent=2, sort_keys=False)
+    if output_path:
+        Path(output_path).write_text(output + "\n", encoding="utf-8")
+    else:
+        print(output)
+
+    if fail_on != "none":
+        threshold = SEVERITY_ORDER[fail_on]
+        if any(SEVERITY_ORDER.get(i.get("severity", "info"), 0) >= threshold for i in issues):
+            return 1
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Lint an agent-first CLI command catalog and emit a JSON report.")
     parser.add_argument("catalog", help="Path to command catalog JSON.")
@@ -328,8 +479,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         text = Path(args.catalog).read_text(encoding="utf-8")
         catalog = json.loads(text)
-        if not isinstance(catalog, dict):
-            raise ValueError("catalog JSON must be an object")
     except Exception as exc:  # noqa: BLE001 - report as structured JSON
         envelope = result_envelope(
             "error",
@@ -345,25 +494,25 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(json.dumps(envelope, indent=2, sort_keys=False))
         return 2
 
-    issues = lint_catalog(catalog)
-    data = {
-        "catalog": args.catalog,
-        "summary": summarize(issues),
-        "issues": issues,
-    }
-    status = "success" if not issues else "partial"
-    envelope = result_envelope(status, data=data)
-    output = json.dumps(envelope, indent=2, sort_keys=False)
-    if args.out:
-        Path(args.out).write_text(output + "\n", encoding="utf-8")
-    else:
-        print(output)
-
-    if args.fail_on != "none":
-        threshold = SEVERITY_ORDER[args.fail_on]
-        if any(SEVERITY_ORDER.get(i.get("severity", "info"), 0) >= threshold for i in issues):
-            return 1
-    return 0
+    try:
+        return process_catalog(catalog, args.catalog, args.out, args.fail_on)
+    except Exception as exc:  # noqa: BLE001 - preserve the JSON protocol on unexpected faults
+        envelope = result_envelope(
+            "error",
+            data={"catalog": args.catalog},
+            error={
+                "code": "INTERNAL_ERROR",
+                "message": "The catalog validator failed unexpectedly.",
+                "details": {
+                    "catalog": args.catalog,
+                    "error_type": type(exc).__name__,
+                },
+                "recoverable": False,
+                "suggested_actions": ["Report the validator failure without retrying unchanged input."],
+            },
+        )
+        print(json.dumps(envelope, indent=2, sort_keys=False))
+        return 13
 
 
 if __name__ == "__main__":
