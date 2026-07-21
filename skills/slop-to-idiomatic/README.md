@@ -12,6 +12,7 @@ The package uses progressive disclosure:
 ## Included idiom references
 
 - C++
+- JavaScript
 - Python
 - Rust
 - TypeScript

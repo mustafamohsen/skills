@@ -10,7 +10,7 @@ Design, implement, audit, and test command-line interfaces intended to be consum
 
 ### slop-to-idiomatic
 
-Explicitly invoked, behavior-preserving refactoring of AI-generated C++, Python, Rust, TypeScript, React, and TanStack Start code into ecosystem idioms.
+Explicitly invoked, behavior-preserving refactoring of AI-generated C++, JavaScript, Python, Rust, TypeScript, React, and TanStack Start code into ecosystem idioms.
 
 ## Install
 

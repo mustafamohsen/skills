@@ -21,10 +21,13 @@ Always read [`references/refactor-workflow.md`](references/refactor-workflow.md)
 | Code in scope | Read |
 |---|---|
 | C++ translation units or headers compiled as C++ | [`references/cpp.md`](references/cpp.md) |
+| JavaScript (`.js`, `.mjs`, `.cjs`) | [`references/javascript.md`](references/javascript.md) |
+| JavaScript JSX | [`references/javascript.md`](references/javascript.md), plus the applicable framework reference |
 | Python | [`references/python.md`](references/python.md) |
 | Rust | [`references/rust.md`](references/rust.md) |
-| TypeScript or TSX | [`references/typescript.md`](references/typescript.md) |
-| React | [`references/react.md`](references/react.md), plus TypeScript when applicable |
+| TypeScript (`.ts`, `.mts`, `.cts`) | [`references/typescript.md`](references/typescript.md) |
+| TypeScript JSX (`.tsx`) | [`references/typescript.md`](references/typescript.md), plus the applicable framework reference |
+| React | [`references/react.md`](references/react.md), plus JavaScript or TypeScript as applicable |
 | TanStack Start | [`references/tanstack-start.md`](references/tanstack-start.md), React, and TypeScript |
 
 When several apply, reconcile them in this order: repository conventions and supported versions, framework rules, language idioms, then general preferences. Never force a reference pattern that conflicts with the project's established architecture or version.
