@@ -1,0 +1,36 @@
+name: Agent-first CLI contracts
+
+on:
+  pull_request:
+    paths:
+      - 'skills/agent-first-cli/**'
+      - '.github/workflows/agent-first-cli.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'skills/agent-first-cli/**'
+      - '.github/workflows/agent-first-cli.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ['3.10', '3.14']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Public CLI contract tests
+        run: python -m unittest discover -s skills/agent-first-cli/tests -p 'test_*.py' -v
+      - name: Shipped catalog lint
+        run: python skills/agent-first-cli/scripts/afcli_schema_lint.py skills/agent-first-cli/examples/command_catalog.example.json --fail-on warning

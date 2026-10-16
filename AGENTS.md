@@ -82,6 +82,7 @@ When the user requests a durable behavior change, record it here or in the relev
 ## Child DOX Index
 
 - [`.agents/AGENTS.md`](.agents/AGENTS.md) — project-local imported authoring helpers.
+- [`.github/AGENTS.md`](.github/AGENTS.md) — cross-platform continuous integration workflows.
 - [`skills/AGENTS.md`](skills/AGENTS.md) — reusable skill packages and package-level contracts.
 <!--DOX end-->
 

@@ -9,15 +9,18 @@ Own black-box regression tests for the package's public JSON-emitting scripts.
 - Tests invoke shipped scripts through their subprocess interfaces.
 - Malformed-input tests assert whole-matrix preflight, continued execution after bad responses, and JSON output for fatal input/reporting errors.
 - Test fixtures and mock CLIs used only by these tests belong in this subtree.
+- Mutation-gate tests use disposable local resources and verify that rejection happens before any invocation.
 
 ## Local Contracts
 
 - Assert observable JSON output, standard-error behavior, and process exit status rather than helper implementation details.
 - Use only the Python standard library so package verification remains zero-install.
+- Redaction tests use synthetic secrets only and check both stdout and file reports, including command metadata and failure details.
 
 ## Work Guidance
 
 - Add one behavior-focused regression at a time and keep expected values independent of implementation logic.
+- Process-lifetime fixtures use bounded workers and temporary resources. Check descendant cleanup after timeout, completion, and interruption on POSIX and Windows; never rely on local macOS results alone.
 
 ## Verification
 
