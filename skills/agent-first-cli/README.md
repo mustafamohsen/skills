@@ -47,6 +47,7 @@ agent-first-cli-skill/
     test_probe_mutation_safety.py
     test_probe_redaction.py
     test_probe_process_cleanup.py
+    test_probe_input_errors.py
 ```
 
 ## Typical uses
@@ -81,6 +82,24 @@ python scripts/afcli_probe.py --cmd "python -m mytool" --matrix examples/probe_m
 ```
 
 The scripts use only the Python standard library.
+
+## Probe input and failure protocol
+
+The probe validates the whole custom matrix before executing any test. `tests` must be a non-empty array of objects; args/environment values/stdin must have the documented string types, timeouts must be positive integers, and expectation lists must be non-empty with correctly typed entries. Unknown extension fields remain allowed. See `tasks/test_cli.md` for field types.
+
+Malformed CLI output (including invalid UTF-8, non-finite JSON numbers, and wrongly typed envelope fields) becomes a per-test finding; subsequent tests still run. Execution failures such as permission errors also become critical per-test findings. `--fail-on` continues to determine the report's exit status.
+
+Fatal input/reporting errors always emit one JSON envelope on stdout, even when `--out` was requested:
+
+| Code | Exit | Meaning |
+|---|---:|---|
+| `INVALID_USAGE` / `INVALID_COMMAND` | 2 | Invalid flags, bounds, or command quoting |
+| `MATRIX_READ_FAILED` | 2 | Unreadable file or invalid JSON |
+| `MATRIX_INVALID` | 2 | Invalid matrix shape; `details.path` identifies the field |
+| `REPORT_WRITE_FAILED` | 3 | Report destination could not be written |
+| `INTERNAL_ERROR` | 13 | Unexpected probe fault; no traceback or raw exception values are emitted |
+
+`--help` remains ordinary argparse help text. Correctly formed reports still honor `--out` without stdout output.
 
 ## Probe process lifetime
 

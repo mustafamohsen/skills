@@ -67,13 +67,17 @@ Fields:
 |---|---|
 | `name` | Stable test name |
 | `effects` | Required: `read-only` or `mutating`; classify conservatively |
-| `args` | Arguments appended to the base command |
-| `stdin` | Optional string passed to standard input |
-| `expect_exit` | List of acceptable exit codes |
-| `expect_json_stdout` | Whether standard output must parse as JSON |
-| `expect_status` | Acceptable top-level JSON `status` values |
-| `expect_error_code` | Acceptable `error.code` values |
-| `timeout_seconds` | Per-test timeout |
+| `args` | Array of NUL-free UTF-8 strings appended to the base command; defaults to `[]` |
+| `stdin` | Optional UTF-8 string passed to standard input |
+| `env` | Optional object of string values and nonempty names without NUL or `=` |
+| `expect_exit` | Non-empty array of integer exit codes; booleans are not integers |
+| `expect_json_stdout` | Boolean: stdout must parse as standard JSON |
+| `expect_stderr_empty` | Boolean: stderr must be empty |
+| `expect_status` | Non-empty array containing `success`, `partial`, or `error` |
+| `expect_error_code` | Non-empty array of non-empty error-code strings |
+| `timeout_seconds` | Positive integer seconds; defaults to `--timeout` |
+
+Custom matrices require a non-empty `tests` array. The entire matrix is validated before any command runs, with invalid structure reported as JSON `MATRIX_INVALID` and a field path (exit 2). Malformed responses and execution failures are per-test findings, not reasons to discard the remaining tests. Fatal input/I/O errors use the protocol documented in `README.md`; `--help` is ordinary text. Unknown extension fields remain permitted.
 
 A matrix containing any `mutating` test requires both `--allow-mutations` and a nonblank `--isolated-environment <description>`. These flags attest to verified isolation; they do not enforce it. Preflight rejects the whole matrix before any test starts if classification or authorization is missing.
 

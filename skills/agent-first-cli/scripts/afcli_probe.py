@@ -123,6 +123,77 @@ def add_issue(
     issues.append(item)
 
 
+class ProbeInputError(Exception):
+    def __init__(self, code: str, message: str, details: Optional[Dict[str, Any]] = None, exit_code: int = 2):
+        super().__init__(message)
+        self.code = code
+        self.details = details or {}
+        self.exit_code = exit_code
+
+
+class ProbeArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        # argparse's message can echo a credential supplied as an invalid flag.
+        raise ProbeInputError("INVALID_USAGE", "Invalid probe arguments; see --help.")
+
+
+def valid_text(value: Any, allow_nul: bool = False) -> bool:
+    if not isinstance(value, str) or (not allow_nul and "\x00" in value):
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeError:
+        return False
+    return True
+
+
+def validate_matrix(matrix: Any) -> None:
+    def require(condition: bool, path: str, expected: str) -> None:
+        if not condition:
+            raise ProbeInputError("MATRIX_INVALID", f"Expected {expected}.", {"path": path})
+
+    require(isinstance(matrix, dict), "$", "an object")
+    tests = matrix.get("tests")
+    require(isinstance(tests, list) and bool(tests), "$.tests", "a non-empty array")
+    for index, test in enumerate(tests):
+        path = f"$.tests[{index}]"
+        require(isinstance(test, dict), path, "an object")
+        if "name" in test:
+            require(valid_text(test["name"]) and bool(test["name"].strip()), path + ".name", "a nonblank string")
+        if "args" in test:
+            require(isinstance(test["args"], list) and all(valid_text(arg) for arg in test["args"]),
+                    path + ".args", "an array of NUL-free UTF-8 strings")
+        if "stdin" in test:
+            require(valid_text(test["stdin"], allow_nul=True), path + ".stdin", "a UTF-8 string")
+        if "timeout_seconds" in test:
+            value = test["timeout_seconds"]
+            require(type(value) is int and value > 0, path + ".timeout_seconds", "a positive integer")
+        for field in ("expect_json_stdout", "expect_stderr_empty"):
+            if field in test:
+                require(isinstance(test[field], bool), path + "." + field, "a boolean")
+        for field in ("expect_exit", "expect_status", "expect_error_code"):
+            if field not in test:
+                continue
+            values = test[field]
+            require(isinstance(values, list) and bool(values), path + "." + field, "a non-empty array")
+            if field == "expect_exit":
+                require(all(type(value) is int for value in values), path + "." + field, "integer exit codes")
+            else:
+                require(all(valid_text(value) and bool(value) for value in values), path + "." + field, "non-empty strings")
+                if field == "expect_status":
+                    require(all(value in ("success", "partial", "error") for value in values),
+                            path + "." + field, "success, partial, or error statuses")
+        if "env" in test:
+            env = test["env"]
+            require(isinstance(env, dict), path + ".env", "an object")
+            require(all(valid_text(key) and bool(key) and "=" not in key and valid_text(value)
+                        for key, value in env.items()), path + ".env", "valid environment names and string values")
+
+
+def reject_nonfinite(value: str) -> None:
+    raise ValueError("Non-finite numbers are not valid JSON.")
+
+
 def load_matrix(path: Optional[str]) -> Dict[str, Any]:
     if not path:
         return {
@@ -157,11 +228,11 @@ def load_matrix(path: Optional[str]) -> Dict[str, Any]:
             ]
         }
     try:
-        value = json.loads(Path(path).read_text(encoding="utf-8"))
-    except Exception as exc:  # noqa: BLE001
-        raise SystemExit(f"Could not read matrix JSON: {exc}") from exc
-    if not isinstance(value, dict) or not isinstance(value.get("tests"), list):
-        raise SystemExit("Matrix must be a JSON object with a `tests` array.")
+        value = json.loads(Path(path).read_text(encoding="utf-8"), parse_constant=reject_nonfinite)
+    except (OSError, ValueError, UnicodeError, RecursionError) as exc:
+        raise ProbeInputError("MATRIX_READ_FAILED", "Could not read matrix JSON.",
+                              {"error_type": type(exc).__name__}) from exc
+    validate_matrix(value)
     return value
 
 
@@ -170,9 +241,11 @@ def parse_json_stdout(stdout: str) -> Tuple[Optional[Any], Optional[str]]:
     if not stripped:
         return None, "stdout is empty"
     try:
-        return json.loads(stripped), None
+        return json.loads(stripped, parse_constant=reject_nonfinite), None
     except json.JSONDecodeError as exc:
         return None, f"stdout is not valid JSON: {exc.msg} at line {exc.lineno}, column {exc.colno}"
+    except (ValueError, RecursionError) as exc:
+        return None, f"stdout cannot be parsed as standard JSON ({type(exc).__name__})"
 
 
 def envelope_checks(obj: Any, expect_status: Optional[List[str]], expect_error_code: Optional[List[str]]) -> List[Dict[str, Any]]:
@@ -184,8 +257,8 @@ def envelope_checks(obj: Any, expect_status: Optional[List[str]], expect_error_c
     status = obj.get("status")
     if status is None:
         add_issue(issues, "high", "json", "JSON envelope is missing top-level `status`.")
-    elif status not in {"success", "partial", "error"}:
-        add_issue(issues, "high", "json", "Top-level `status` is not one of success, partial, error.", details={"status": status})
+    elif not isinstance(status, str) or status not in {"success", "partial", "error"}:
+        add_issue(issues, "critical", "json", "Top-level `status` must be a string: success, partial, or error.", details={"status": status})
 
     if expect_status and status not in expect_status:
         add_issue(
@@ -196,8 +269,8 @@ def envelope_checks(obj: Any, expect_status: Optional[List[str]], expect_error_c
             details={"expected": expect_status, "actual": status},
         )
 
-    if not obj.get("command"):
-        add_issue(issues, "warning", "json", "JSON envelope is missing stable `command` field.")
+    if not isinstance(obj.get("command"), str) or not obj["command"]:
+        add_issue(issues, "warning", "json", "JSON envelope requires a non-empty string `command` field.")
 
     warnings = obj.get("warnings")
     if warnings is not None and not isinstance(warnings, list):
@@ -206,8 +279,8 @@ def envelope_checks(obj: Any, expect_status: Optional[List[str]], expect_error_c
     metadata = obj.get("metadata")
     if not isinstance(metadata, dict):
         add_issue(issues, "warning", "json", "JSON envelope is missing `metadata` object.")
-    elif not metadata.get("schema_version"):
-        add_issue(issues, "warning", "json", "`metadata.schema_version` is missing.")
+    elif not isinstance(metadata.get("schema_version"), str) or not metadata["schema_version"]:
+        add_issue(issues, "warning", "json", "`metadata.schema_version` must be a non-empty string.")
 
     if status == "error" or expect_error_code:
         error = obj.get("error")
@@ -215,8 +288,8 @@ def envelope_checks(obj: Any, expect_status: Optional[List[str]], expect_error_c
             add_issue(issues, "critical", "json", "Error result lacks structured `error` object.")
         else:
             code = error.get("code")
-            if not code:
-                add_issue(issues, "critical", "json", "Structured error is missing stable `error.code`.")
+            if not isinstance(code, str) or not code:
+                add_issue(issues, "critical", "json", "Structured error requires a non-empty string `error.code`.")
             if expect_error_code and code not in expect_error_code:
                 add_issue(
                     issues,
@@ -225,8 +298,8 @@ def envelope_checks(obj: Any, expect_status: Optional[List[str]], expect_error_c
                     "`error.code` did not match expectation.",
                     details={"expected": expect_error_code, "actual": code},
                 )
-            if "recoverable" not in error:
-                add_issue(issues, "warning", "json", "Structured error should include `recoverable`.")
+            if not isinstance(error.get("recoverable"), bool):
+                add_issue(issues, "warning", "json", "Structured error should include boolean `recoverable`.")
     return issues
 
 
@@ -266,7 +339,7 @@ def run_one(base_cmd: List[str], test: Dict[str, Any], default_timeout: int, max
         exit_code = None
         stdout = exc.stdout if isinstance(exc.stdout, str) else ""
         stderr = exc.stderr if isinstance(exc.stderr, str) else ""
-    except FileNotFoundError as exc:
+    except (OSError, UnicodeError, ValueError, OverflowError) as exc:
         return {
             "name": name,
             "status": "error",
@@ -275,8 +348,9 @@ def run_one(base_cmd: List[str], test: Dict[str, Any], default_timeout: int, max
                 {
                     "severity": "critical",
                     "area": "execution",
-                    "message": str(exc),
-                    "recommendation": "Check the `--cmd` value and ensure the CLI is on PATH.",
+                    "message": "Command execution or output decoding failed.",
+                    "details": {"error_type": type(exc).__name__},
+                    "recommendation": "Check command availability, permissions, UTF-8 output, and input limits.",
                 }
             ],
         }
@@ -395,8 +469,8 @@ def result_envelope(status: str, data: Dict[str, Any], error: Optional[Dict[str,
     }
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Probe a live CLI for agent-first behavior and emit a JSON report.")
+def probe_main(argv: Optional[List[str]] = None) -> int:
+    parser = ProbeArgumentParser(description="Probe a live CLI for agent-first behavior and emit a JSON report.")
     parser.add_argument("--cmd", required=True, help="Base command to run, for example: 'mytool' or 'python -m mytool'.")
     parser.add_argument("--matrix", help="Path to JSON probe matrix. Defaults to a minimal built-in matrix.")
     parser.add_argument("--allow-mutations", action="store_true", help="Authorize mutating tests against disposable resources only.")
@@ -413,8 +487,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Exit non-zero if any issue at or above this severity exists.",
     )
     args = parser.parse_args(argv)
-
-    base_cmd = shlex.split(args.cmd)
+    if args.timeout <= 0 or args.max_capture < 0:
+        raise ProbeInputError("INVALID_USAGE", "--timeout must be positive and --max-capture must be nonnegative.")
+    try:
+        base_cmd = shlex.split(args.cmd)
+    except ValueError as exc:
+        raise ProbeInputError("INVALID_COMMAND", "--cmd must contain a valid shell-quoted argument list.") from exc
+    if not all(valid_text(part) for part in base_cmd):
+        raise ProbeInputError("INVALID_COMMAND", "--cmd arguments must be NUL-free UTF-8 strings.")
     if not base_cmd:
         envelope = result_envelope(
             "error",
@@ -487,7 +567,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     envelope = result_envelope(status, data=data)
     output = json.dumps(redact_data(envelope, secrets), indent=2, sort_keys=False)
     if args.out:
-        Path(args.out).write_text(output + "\n", encoding="utf-8")
+        try:
+            Path(args.out).write_text(output + "\n", encoding="utf-8")
+        except OSError as exc:
+            raise ProbeInputError("REPORT_WRITE_FAILED", "Could not write the probe report.",
+                                  {"error_type": type(exc).__name__}, exit_code=3) from exc
     else:
         print(output)
 
@@ -498,6 +582,22 @@ def main(argv: Optional[List[str]] = None) -> int:
                 if SEVERITY_ORDER.get(item.get("severity", "info"), 0) >= threshold:
                     return 1
     return 0
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    try:
+        return probe_main(argv)
+    except ProbeInputError as exc:
+        error = {"code": exc.code, "message": str(exc), "details": exc.details,
+                 "recoverable": True, "suggested_actions": ["Correct the input or path and retry."]}
+        exit_code = exc.exit_code
+    except Exception as exc:  # noqa: BLE001 - preserve the public JSON protocol
+        error = {"code": "INTERNAL_ERROR", "message": "The probe failed unexpectedly.",
+                 "details": {"error_type": type(exc).__name__}, "recoverable": False,
+                 "suggested_actions": ["Report this failure without retrying unchanged input."]}
+        exit_code = 13
+    print(json.dumps(result_envelope("error", data={}, error=error), indent=2))
+    return exit_code
 
 
 if __name__ == "__main__":
