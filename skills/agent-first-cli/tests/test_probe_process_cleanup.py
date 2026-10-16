@@ -142,6 +142,20 @@ class ProcessCleanupTests(unittest.TestCase):
             self.assertEqual(report["status"], "partial")
             self.assertIn("ready", report["data"]["results"][0]["stdout_preview"])
 
+    def test_utf8_output_is_independent_of_platform_locale(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cli = root / "cli.py"
+            cli.write_text("import os\nos.write(1, bytes([99, 97, 102, 195, 169]))\n")
+            matrix = root / "matrix.json"
+            matrix.write_text(json.dumps({"tests": [{"args": [], "effects": "read-only"}]}))
+            result = subprocess.run(
+                [sys.executable, str(PROBE), "--cmd", shlex.join([sys.executable, str(cli)]), "--matrix", str(matrix)],
+                capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(json.loads(result.stdout)["data"]["results"][0]["stdout_preview"], "caf\u00e9")
+
     def test_stdin_is_closed_unless_the_matrix_supplies_it(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

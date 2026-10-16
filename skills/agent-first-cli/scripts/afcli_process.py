@@ -178,7 +178,7 @@ def run_command(cmd: List[str], stdin: Optional[str], timeout: int,
         }
         process = subprocess.Popen(
             cmd, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, **options,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", env=env, **options,
         )
         if pending_signal is not None:
             raise ProcessInterrupted(pending_signal)

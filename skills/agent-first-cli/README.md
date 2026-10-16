@@ -82,7 +82,7 @@ The scripts use only the Python standard library.
 
 ## Probe process lifetime
 
-Each invocation runs in an owned POSIX process group or Windows Job Object. Windows children start suspended and are assigned to a kill-on-close job before resuming. The probe stops owned descendants on timeout, interruption, and normal completion, so a CLI cannot leave a background worker running between tests. Stdin is closed unless the matrix supplies `stdin` explicitly.
+Each invocation runs in an owned POSIX process group or Windows Job Object. Windows children start suspended and are assigned to a kill-on-close job before resuming. The probe stops owned descendants on timeout, interruption, and normal completion, so a CLI cannot leave a background worker running between tests. Stdin is closed unless the matrix supplies `stdin` explicitly. Child text I/O uses UTF-8 consistently across platforms rather than the host locale.
 
 Timeouts retain captured output and become test findings. Graceful SIGINT/SIGTERM interruption emits JSON `INTERRUPTED` and exits `128 + signal`. Containment setup/cleanup failures abort the matrix with JSON `CONTAINMENT_FAILED` (exit 13). Fatal/interruption reports go to stdout even with `--out`. Windows forced termination closes the job handle and kills its members, but cannot emit a report from the terminated runner.
 
