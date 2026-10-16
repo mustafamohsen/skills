@@ -141,6 +141,7 @@ def run_command(cmd: List[str], stdin: Optional[str], timeout: int,
     previous_handlers = {}
     launching = True
     pending_signal = None
+    terminated = False
 
     def interrupt(signum, frame):
         nonlocal pending_signal
@@ -152,7 +153,8 @@ def run_command(cmd: List[str], stdin: Optional[str], timeout: int,
             raise ProcessInterrupted(signum)
 
     def terminate():
-        if process is None:
+        nonlocal terminated
+        if process is None or terminated:
             return
         if job is not None:
             job.terminate()
@@ -164,6 +166,10 @@ def run_command(cmd: List[str], stdin: Optional[str], timeout: int,
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+        # Do not signal this group again after a successful kill. On macOS an
+        # exiting/reaped group may transiently return EPERM on a second kill.
+        # Re-signalling could also target a recycled group ID.
+        terminated = True
 
     try:
         for signum in (signal.SIGINT, signal.SIGTERM):

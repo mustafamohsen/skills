@@ -139,8 +139,33 @@ class ProcessCleanupTests(unittest.TestCase):
             self.assertLess(time.monotonic() - started, 7)
             self.assertEqual(result.stderr, "", result.stderr)
             report = json.loads(result.stdout)
-            self.assertEqual(report["status"], "partial")
+            self.assertEqual(report["status"], "partial", report)
             self.assertIn("ready", report["data"]["results"][0]["stdout_preview"])
+
+    def test_repeated_grandchild_timeouts_complete_the_whole_matrix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            worker = root / "worker.py"
+            worker.write_text("import time\ntime.sleep(12)\n")
+            launcher = root / "launcher.py"
+            launcher.write_text(f"import subprocess, sys, time\nsubprocess.Popen([sys.executable, {str(worker)!r}])\ntime.sleep(12)\n")
+            cli = root / "cli.py"
+            cli.write_text(f"import subprocess, sys, time\nsubprocess.Popen([sys.executable, {str(launcher)!r}])\ntime.sleep(12)\n")
+            matrix = root / "matrix.json"
+            matrix.write_text(json.dumps({"tests": [
+                {"name": str(index), "args": [], "effects": "read-only", "timeout_seconds": 1}
+                for index in range(10)
+            ]}))
+            result = subprocess.run(
+                [sys.executable, str(PROBE), "--cmd", shlex.join([sys.executable, str(cli)]), "--matrix", str(matrix)],
+                capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(result.stderr, "", result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["status"], "partial", report)
+            self.assertEqual(report["data"]["summary"]["tests_total"], 10)
+            self.assertTrue(all(any("timed out" in issue["message"] for issue in test["issues"])
+                                for test in report["data"]["results"]))
 
     def test_utf8_output_is_independent_of_platform_locale(self):
         with tempfile.TemporaryDirectory() as directory:
