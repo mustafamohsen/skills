@@ -14,6 +14,7 @@ Provide guidance, tasks, schemas, examples, and probes for designing and auditin
 ## Local Contracts
 
 - Keep schemas, templates, examples, docs, and probe behavior aligned.
+- Probe reports redact sensitive structured fields and known secret values across previews, arguments, and issue details before serialization; previews are redacted before truncation. Preserve subprocess inputs and document best-effort limits for unknown secret formats.
 - Preserve machine-readable stdout and safety semantics when changing scripts or contracts.
 - Probe matrices require per-test `effects` classification. Mutating execution requires explicit opt-in and an isolated-environment attestation; workflow docs must require actual disposable resources and test-only configuration, not present the gate as sandboxing.
 
