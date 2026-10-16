@@ -40,9 +40,11 @@ agent-first-cli-skill/
     probe_matrix.example.json
   scripts/
     afcli_probe.py
+    afcli_process.py
     afcli_schema_lint.py
   tests/
     test_afcli_schema_lint.py
+    test_probe_process_cleanup.py
 ```
 
 ## Typical uses
@@ -78,6 +80,14 @@ python scripts/afcli_probe.py --cmd "python -m mytool" --matrix examples/probe_m
 
 The scripts use only the Python standard library.
 
+## Probe process lifetime
+
+Each invocation runs in an owned POSIX process group or Windows Job Object. Windows children start suspended and are assigned to a kill-on-close job before resuming. The probe stops owned descendants on timeout, interruption, and normal completion, so a CLI cannot leave a background worker running between tests. Stdin is closed unless the matrix supplies `stdin` explicitly.
+
+Timeouts retain captured output and become test findings. Graceful SIGINT/SIGTERM interruption emits JSON `INTERRUPTED` and exits `128 + signal`. Containment setup/cleanup failures abort the matrix with JSON `CONTAINMENT_FAILED` (exit 13). Fatal/interruption reports go to stdout even with `--out`. Windows forced termination closes the job handle and kills its members, but cannot emit a report from the terminated runner.
+
+These are lifecycle boundaries, not security sandboxes: POSIX descendants can deliberately escape a process group, POSIX SIGKILL of the runner cannot trigger its cleanup, and remote jobs are outside local containment. Test remote cancellation separately. CLIs intentionally spawning persistent local daemons need a separately managed test service rather than treating those descendants as durable after a probe completes. Unsupported operating systems fail closed before execution. Keep `afcli_process.py` beside `afcli_probe.py` when copying scripts.
+
 ## Verification
 
 From the repository root:
@@ -85,3 +95,5 @@ From the repository root:
 ```bash
 python3 -m unittest discover -s skills/agent-first-cli/tests -p 'test_*.py'
 ```
+
+GitHub Actions runs the contract tests and shipped catalog lint on Windows, macOS, and Linux with Python 3.10 and 3.14.

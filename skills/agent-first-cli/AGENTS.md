@@ -9,6 +9,7 @@ Provide guidance, tasks, schemas, examples, and probes for designing and auditin
 - `SKILL.md` owns the package workflow and routing.
 - `docs/` owns detailed contracts; `tasks/` owns task playbooks; `templates/` and `examples/` own machine-readable artifacts; `scripts/` owns local probes.
 - `tests/` owns black-box regression coverage for the shipped scripts.
+- `scripts/afcli_process.py` owns subprocess lifecycle: POSIX process groups and native Windows Job Objects. Probe execution fails closed when containment cannot be established or cleaned up.
 - `README.md` and `manifest.txt` own package presentation and shipped-file inventory.
 
 ## Local Contracts

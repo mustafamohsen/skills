@@ -17,6 +17,7 @@ Own black-box regression tests for the package's public JSON-emitting scripts.
 ## Work Guidance
 
 - Add one behavior-focused regression at a time and keep expected values independent of implementation logic.
+- Process-lifetime fixtures use bounded workers and temporary resources. Check descendant cleanup after timeout, completion, and interruption on POSIX and Windows; never rely on local macOS results alone.
 
 ## Verification
 
