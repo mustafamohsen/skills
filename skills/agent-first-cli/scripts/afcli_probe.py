@@ -24,14 +24,69 @@ from afcli_process import ContainmentError, ProcessInterrupted, run_command
 SEVERITY_ORDER = {"info": 0, "low": 1, "warning": 2, "high": 3, "critical": 4}
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 SECRET_PATTERNS = [
-    re.compile(r"(?i)(api[_-]?key|token|secret|password)(\s*[:=]\s*)([^\s\"',}]+)"),
-    re.compile(r"(?i)(bearer\s+)([a-z0-9._\-]{12,})"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL),
+    re.compile(r"(?im)^(authorization|cookie|set-cookie)(\s*:\s*)([^\r\n]+)"),
+    re.compile(r'''(?i)(["']?[\w.-]*(?:api[_-]?key|access[_-]?key|token|secret|password|passwd|authorization|cookie|credential|private[_-]?key)[\w.-]*["']?)(\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s"',}]+)'''),
+    re.compile(r"(?i)(bearer\s+)([^\s\"',}]+)"),
     re.compile(r"(sk-[a-zA-Z0-9]{8,})"),
 ]
 
 
-def redact(text: str) -> str:
+def sensitive_name(name: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]", "", name.lower())
+    return any(part in normalized for part in (
+        "password", "passwd", "token", "secret", "apikey", "accesskey",
+        "authorization", "cookie", "credential", "privatekey",
+    ))
+
+
+def collect_secrets(value: Any, secrets: set[str], sensitive: bool = False) -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            collect_secrets(item, secrets, sensitive or sensitive_name(key))
+    elif isinstance(value, list):
+        for item in value:
+            collect_secrets(item, secrets, sensitive)
+    elif isinstance(value, str) and sensitive and value:
+        secrets.add(value)
+
+
+def collect_argument_secrets(arguments: List[str], secrets: set[str], extra_options: List[str]) -> None:
+    take_next = False
+    for argument in arguments:
+        if take_next:
+            if argument:
+                secrets.add(argument)
+            take_next = False
+        elif argument.startswith("-"):
+            name, separator, value = argument.partition("=")
+            if sensitive_name(name) or name in extra_options:
+                if separator and value:
+                    secrets.add(value)
+                elif not separator:
+                    take_next = True
+
+
+def redact_data(value: Any, secrets: Optional[set[str]] = None) -> Any:
+    if isinstance(value, dict):
+        return {redact(key, secrets): "redacted" if sensitive_name(key) else redact_data(item, secrets)
+                for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact_data(item, secrets) for item in value]
+    if isinstance(value, str):
+        return redact(value, secrets)
+    return value
+
+
+def redact(text: str, secrets: Optional[set[str]] = None) -> str:
+    if text.lstrip().startswith(("{", "[")):
+        try:
+            return json.dumps(redact_data(json.loads(text), secrets))
+        except (ValueError, RecursionError):
+            pass
     redacted = text
+    for secret in sorted(secrets or (), key=len, reverse=True):
+        redacted = redacted.replace(secret, "redacted")
     for pattern in SECRET_PATTERNS:
         if pattern.groups >= 3:
             redacted = pattern.sub(lambda m: f"{m.group(1)}{m.group(2)}redacted", redacted)
@@ -74,6 +129,7 @@ def load_matrix(path: Optional[str]) -> Dict[str, Any]:
             "tests": [
                 {
                     "name": "version_json",
+                    "effects": "read-only",
                     "args": ["version", "--output", "json"],
                     "expect_exit": [0],
                     "expect_json_stdout": True,
@@ -82,6 +138,7 @@ def load_matrix(path: Optional[str]) -> Dict[str, Any]:
                 },
                 {
                     "name": "capabilities_json",
+                    "effects": "read-only",
                     "args": ["capabilities", "--output", "json"],
                     "expect_exit": [0],
                     "expect_json_stdout": True,
@@ -90,6 +147,7 @@ def load_matrix(path: Optional[str]) -> Dict[str, Any]:
                 },
                 {
                     "name": "bad_flag_json_error",
+                    "effects": "read-only",
                     "args": ["--definitely-not-a-real-flag", "--output", "json"],
                     "expect_exit": [2, 12],
                     "expect_json_stdout": True,
@@ -172,7 +230,8 @@ def envelope_checks(obj: Any, expect_status: Optional[List[str]], expect_error_c
     return issues
 
 
-def run_one(base_cmd: List[str], test: Dict[str, Any], default_timeout: int, max_capture: int) -> Dict[str, Any]:
+def run_one(base_cmd: List[str], test: Dict[str, Any], default_timeout: int, max_capture: int,
+            secrets: Optional[set[str]] = None) -> Dict[str, Any]:
     name = str(test.get("name") or "unnamed")
     args = test.get("args") or []
     if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
@@ -221,6 +280,14 @@ def run_one(base_cmd: List[str], test: Dict[str, Any], default_timeout: int, max
                 }
             ],
         }
+
+    if secrets is None:
+        secrets = set()
+    for captured in (stdout, stderr):
+        try:
+            collect_secrets(json.loads(captured), secrets)
+        except (ValueError, RecursionError):
+            pass
 
     duration_ms = round((time.monotonic() - started) * 1000, 3)
     issues: List[Dict[str, Any]] = []
@@ -290,8 +357,8 @@ def run_one(base_cmd: List[str], test: Dict[str, Any], default_timeout: int, max
         "command": cmd,
         "exit_code": exit_code,
         "duration_ms": duration_ms,
-        "stdout_preview": truncate(redact(stdout), max_capture),
-        "stderr_preview": truncate(redact(stderr), max_capture),
+        "stdout_preview": truncate(redact(stdout, secrets), max_capture),
+        "stderr_preview": truncate(redact(stderr, secrets), max_capture),
         "json_stdout_type": type(parsed_json).__name__ if parsed_json is not None else None,
         "issues": issues,
     }
@@ -332,9 +399,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Probe a live CLI for agent-first behavior and emit a JSON report.")
     parser.add_argument("--cmd", required=True, help="Base command to run, for example: 'mytool' or 'python -m mytool'.")
     parser.add_argument("--matrix", help="Path to JSON probe matrix. Defaults to a minimal built-in matrix.")
+    parser.add_argument("--allow-mutations", action="store_true", help="Authorize mutating tests against disposable resources only.")
+    parser.add_argument("--isolated-environment", help="Identify the verified isolated test environment; this is an attestation, not a sandbox.")
     parser.add_argument("--out", help="Optional path to write JSON report. Defaults to stdout.")
     parser.add_argument("--timeout", type=int, default=10, help="Default per-test timeout in seconds.")
     parser.add_argument("--max-capture", type=int, default=4000, help="Maximum stdout/stderr preview chars per test.")
+    parser.add_argument("--sensitive-option", action="append", default=[], metavar="FLAG",
+                        help="Additional secret-valued option; repeat as --sensitive-option=--custom-flag.")
     parser.add_argument(
         "--fail-on",
         choices=["none", "warning", "high", "critical"],
@@ -361,8 +432,39 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     matrix = load_matrix(args.matrix)
     tests = matrix.get("tests") or []
+    if any(not isinstance(test, dict) or test.get("effects") not in ("read-only", "mutating") for test in tests):
+        envelope = result_envelope("error", data={}, error={
+            "code": "SAFETY_CLASSIFICATION_REQUIRED",
+            "message": "Every test must declare effects as read-only or mutating before any command can run.",
+            "details": {},
+            "recoverable": True,
+            "suggested_actions": ["Classify unknown, plan/dry-run, and negative mutation tests as mutating."],
+        })
+        print(json.dumps(envelope, indent=2))
+        return 2
+    if any(test["effects"] == "mutating" for test in tests) and not (
+        args.allow_mutations and args.isolated_environment and args.isolated_environment.strip()
+    ):
+        envelope = result_envelope("error", data={}, error={
+            "code": "UNSAFE_OPERATION",
+            "message": "Mutating probes require --allow-mutations and --isolated-environment.",
+            "details": {},
+            "recoverable": True,
+            "suggested_actions": ["Provision disposable resources with test-only credentials/configuration before opting in."],
+        })
+        print(json.dumps(envelope, indent=2))
+        return 6
+    secrets: set[str] = set()
+    collect_secrets(dict(os.environ), secrets)
+    collect_argument_secrets(base_cmd, secrets, args.sensitive_option)
+    for test in tests:
+        if isinstance(test, dict):
+            collect_secrets(test.get("env", {}), secrets)
+            arguments = test.get("args", [])
+            if isinstance(arguments, list) and all(isinstance(item, str) for item in arguments):
+                collect_argument_secrets(base_cmd + arguments, secrets, args.sensitive_option)
     try:
-        results = [run_one(base_cmd, test, args.timeout, args.max_capture) for test in tests]
+        results = [run_one(base_cmd, test, args.timeout, args.max_capture, secrets) for test in tests]
     except (ProcessInterrupted, ContainmentError) as exc:
         interrupted = isinstance(exc, ProcessInterrupted)
         envelope = result_envelope("error", data={}, error={
@@ -383,7 +485,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "results": results,
     }
     envelope = result_envelope(status, data=data)
-    output = json.dumps(envelope, indent=2, sort_keys=False)
+    output = json.dumps(redact_data(envelope, secrets), indent=2, sort_keys=False)
     if args.out:
         Path(args.out).write_text(output + "\n", encoding="utf-8")
     else:

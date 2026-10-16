@@ -20,4 +20,6 @@ scripts/afcli_probe.py
 scripts/afcli_process.py
 scripts/afcli_schema_lint.py
 tests/test_afcli_schema_lint.py
+tests/test_probe_mutation_safety.py
+tests/test_probe_redaction.py
 tests/test_probe_process_cleanup.py

@@ -8,11 +8,13 @@ Own black-box regression tests for the package's public JSON-emitting scripts.
 
 - Tests invoke shipped scripts through their subprocess interfaces.
 - Test fixtures and mock CLIs used only by these tests belong in this subtree.
+- Mutation-gate tests use disposable local resources and verify that rejection happens before any invocation.
 
 ## Local Contracts
 
 - Assert observable JSON output, standard-error behavior, and process exit status rather than helper implementation details.
 - Use only the Python standard library so package verification remains zero-install.
+- Redaction tests use synthetic secrets only and check both stdout and file reports, including command metadata and failure details.
 
 ## Work Guidance
 
