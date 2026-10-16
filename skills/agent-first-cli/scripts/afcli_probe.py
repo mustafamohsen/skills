@@ -19,6 +19,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from afcli_process import ContainmentError, ProcessInterrupted, run_command
+
 SEVERITY_ORDER = {"info": 0, "low": 1, "warning": 2, "high": 3, "critical": 4}
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 SECRET_PATTERNS = [
@@ -255,15 +257,7 @@ def run_one(base_cmd: List[str], test: Dict[str, Any], default_timeout: int, max
     started = time.monotonic()
     timed_out = False
     try:
-        proc = subprocess.run(
-            cmd,
-            input=stdin,
-            text=True,
-            capture_output=True,
-            timeout=timeout,
-            env=env,
-            check=False,
-        )
+        proc = run_command(cmd, stdin=stdin, timeout=timeout, env=env)
         exit_code = proc.returncode
         stdout = proc.stdout or ""
         stderr = proc.stderr or ""
@@ -469,7 +463,19 @@ def main(argv: Optional[List[str]] = None) -> int:
             arguments = test.get("args", [])
             if isinstance(arguments, list) and all(isinstance(item, str) for item in arguments):
                 collect_argument_secrets(base_cmd + arguments, secrets, args.sensitive_option)
-    results = [run_one(base_cmd, test, args.timeout, args.max_capture, secrets) for test in tests]
+    try:
+        results = [run_one(base_cmd, test, args.timeout, args.max_capture, secrets) for test in tests]
+    except (ProcessInterrupted, ContainmentError) as exc:
+        interrupted = isinstance(exc, ProcessInterrupted)
+        envelope = result_envelope("error", data={}, error={
+            "code": "INTERRUPTED" if interrupted else "CONTAINMENT_FAILED",
+            "message": "Probe interrupted; owned processes were stopped." if interrupted else str(exc),
+            "details": {},
+            "recoverable": False,
+            "suggested_actions": ["Inspect the execution environment before retrying."],
+        })
+        print(json.dumps(envelope, indent=2))
+        return 128 + exc.signum if interrupted else 13
     summary = summarize(results)
     status = "success" if summary["tests_failed"] == 0 else "partial"
     data = {
