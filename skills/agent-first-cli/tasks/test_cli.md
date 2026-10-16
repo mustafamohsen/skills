@@ -24,7 +24,9 @@ Static checks catch missing descriptions, weak mutation safety, missing global f
 
 ## Layer 2: Dynamic CLI probes
 
-Create a matrix file. Start from `examples/probe_matrix.example.json`.
+Create a matrix file. Start from `examples/probe_matrix.example.json`. Verify each test's `effects` classification against the actual CLI. Unknown behavior and negative mutation tests count as mutating, not read-only.
+
+Before any mutation test (including plan/dry-run safety tests), provision disposable resources with test-only credentials, explicit endpoints/profile, isolated configuration and working directory, and no production access. Obtain authorization for test mutations. If this cannot be verified, skip execution and report the untested paths. The probe does not create a sandbox or strip ambient credentials.
 
 Run:
 
@@ -48,6 +50,7 @@ The probe checks:
   "tests": [
     {
       "name": "version_json",
+      "effects": "read-only",
       "args": ["version", "--output", "json"],
       "expect_exit": [0],
       "expect_json_stdout": true,
@@ -63,6 +66,7 @@ Fields:
 | Field | Meaning |
 |---|---|
 | `name` | Stable test name |
+| `effects` | Required: `read-only` or `mutating`; classify conservatively |
 | `args` | Arguments appended to the base command |
 | `stdin` | Optional string passed to standard input |
 | `expect_exit` | List of acceptable exit codes |
@@ -70,6 +74,16 @@ Fields:
 | `expect_status` | Acceptable top-level JSON `status` values |
 | `expect_error_code` | Acceptable `error.code` values |
 | `timeout_seconds` | Per-test timeout |
+
+A matrix containing any `mutating` test requires both `--allow-mutations` and a nonblank `--isolated-environment <description>`. These flags attest to verified isolation; they do not enforce it. Preflight rejects the whole matrix before any test starts if classification or authorization is missing.
+
+```bash
+# Run only from a verified disposable test environment.
+python scripts/afcli_probe.py --cmd "tool" --matrix mutation_matrix.json \
+  --allow-mutations --isolated-environment "local-disposable-fixtures" --fail-on critical
+```
+
+Existing custom matrices must add `effects` to every test. Gate errors are JSON on stdout: `SAFETY_CLASSIFICATION_REQUIRED` (exit 2) or `UNSAFE_OPERATION` (exit 6), regardless of `--fail-on` or `--out`.
 
 ## Required test cases
 
@@ -167,7 +181,7 @@ python scripts/afcli_schema_lint.py command_catalog.json --fail-on warning
 python scripts/afcli_probe.py --cmd "tool" --matrix probe_matrix.json --fail-on critical
 ```
 
-For stricter projects, fail on warnings as well.
+For stricter projects, fail on warnings as well. The example gate above assumes a read-only matrix. Mutation CI jobs must provision the isolated environment first and pass both authorization flags; never reuse production credentials.
 
 ## Regression strategy
 

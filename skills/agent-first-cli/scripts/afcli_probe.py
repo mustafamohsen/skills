@@ -72,6 +72,7 @@ def load_matrix(path: Optional[str]) -> Dict[str, Any]:
             "tests": [
                 {
                     "name": "version_json",
+                    "effects": "read-only",
                     "args": ["version", "--output", "json"],
                     "expect_exit": [0],
                     "expect_json_stdout": True,
@@ -80,6 +81,7 @@ def load_matrix(path: Optional[str]) -> Dict[str, Any]:
                 },
                 {
                     "name": "capabilities_json",
+                    "effects": "read-only",
                     "args": ["capabilities", "--output", "json"],
                     "expect_exit": [0],
                     "expect_json_stdout": True,
@@ -88,6 +90,7 @@ def load_matrix(path: Optional[str]) -> Dict[str, Any]:
                 },
                 {
                     "name": "bad_flag_json_error",
+                    "effects": "read-only",
                     "args": ["--definitely-not-a-real-flag", "--output", "json"],
                     "expect_exit": [2, 12],
                     "expect_json_stdout": True,
@@ -338,6 +341,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Probe a live CLI for agent-first behavior and emit a JSON report.")
     parser.add_argument("--cmd", required=True, help="Base command to run, for example: 'mytool' or 'python -m mytool'.")
     parser.add_argument("--matrix", help="Path to JSON probe matrix. Defaults to a minimal built-in matrix.")
+    parser.add_argument("--allow-mutations", action="store_true", help="Authorize mutating tests against disposable resources only.")
+    parser.add_argument("--isolated-environment", help="Identify the verified isolated test environment; this is an attestation, not a sandbox.")
     parser.add_argument("--out", help="Optional path to write JSON report. Defaults to stdout.")
     parser.add_argument("--timeout", type=int, default=10, help="Default per-test timeout in seconds.")
     parser.add_argument("--max-capture", type=int, default=4000, help="Maximum stdout/stderr preview chars per test.")
@@ -367,6 +372,28 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     matrix = load_matrix(args.matrix)
     tests = matrix.get("tests") or []
+    if any(not isinstance(test, dict) or test.get("effects") not in ("read-only", "mutating") for test in tests):
+        envelope = result_envelope("error", data={}, error={
+            "code": "SAFETY_CLASSIFICATION_REQUIRED",
+            "message": "Every test must declare effects as read-only or mutating before any command can run.",
+            "details": {},
+            "recoverable": True,
+            "suggested_actions": ["Classify unknown, plan/dry-run, and negative mutation tests as mutating."],
+        })
+        print(json.dumps(envelope, indent=2))
+        return 2
+    if any(test["effects"] == "mutating" for test in tests) and not (
+        args.allow_mutations and args.isolated_environment and args.isolated_environment.strip()
+    ):
+        envelope = result_envelope("error", data={}, error={
+            "code": "UNSAFE_OPERATION",
+            "message": "Mutating probes require --allow-mutations and --isolated-environment.",
+            "details": {},
+            "recoverable": True,
+            "suggested_actions": ["Provision disposable resources with test-only credentials/configuration before opting in."],
+        })
+        print(json.dumps(envelope, indent=2))
+        return 6
     results = [run_one(base_cmd, test, args.timeout, args.max_capture) for test in tests]
     summary = summarize(results)
     status = "success" if summary["tests_failed"] == 0 else "partial"

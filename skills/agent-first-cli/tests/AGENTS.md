@@ -8,6 +8,7 @@ Own black-box regression tests for the package's public JSON-emitting scripts.
 
 - Tests invoke shipped scripts through their subprocess interfaces.
 - Test fixtures and mock CLIs used only by these tests belong in this subtree.
+- Mutation-gate tests use disposable local resources and verify that rejection happens before any invocation.
 
 ## Local Contracts
 

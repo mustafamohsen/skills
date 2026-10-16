@@ -15,6 +15,7 @@ Provide guidance, tasks, schemas, examples, and probes for designing and auditin
 
 - Keep schemas, templates, examples, docs, and probe behavior aligned.
 - Preserve machine-readable stdout and safety semantics when changing scripts or contracts.
+- Probe matrices require per-test `effects` classification. Mutating execution requires explicit opt-in and an isolated-environment attestation; workflow docs must require actual disposable resources and test-only configuration, not present the gate as sandboxing.
 
 ## Work Guidance
 
