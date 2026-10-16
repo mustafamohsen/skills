@@ -19,6 +19,7 @@ Provide guidance, tasks, schemas, examples, and probes for designing and auditin
 ## Work Guidance
 
 - Prefer targeted changes to the owning artifact and update dependent examples or docs in the same change.
+- Validate complete probe matrices before execution. Malformed responses and ordinary launch/decoding failures become per-test findings; fatal input/report I/O faults use structured JSON errors rather than tracebacks.
 
 ## Verification
 

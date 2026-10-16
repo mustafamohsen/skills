@@ -7,6 +7,7 @@ Own black-box regression tests for the package's public JSON-emitting scripts.
 ## Ownership
 
 - Tests invoke shipped scripts through their subprocess interfaces.
+- Malformed-input tests assert whole-matrix preflight, continued execution after bad responses, and JSON output for fatal input/reporting errors.
 - Test fixtures and mock CLIs used only by these tests belong in this subtree.
 
 ## Local Contracts
