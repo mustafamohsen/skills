@@ -43,6 +43,7 @@ agent-first-cli-skill/
     afcli_schema_lint.py
   tests/
     test_afcli_schema_lint.py
+    test_probe_mutation_safety.py
     test_probe_redaction.py
 ```
 
@@ -78,6 +79,8 @@ python scripts/afcli_probe.py --cmd "python -m mytool" --matrix examples/probe_m
 ```
 
 The scripts use only the Python standard library.
+
+Probe matrices must classify every test with `effects: "read-only"` or `effects: "mutating"`. Existing custom matrices need this field. Mutating matrices are blocked unless both `--allow-mutations` and `--isolated-environment <description>` are supplied. Follow `tasks/audit_existing_cli.md` to provision disposable resources and test-only credentials/configuration first. These flags attest to an already isolated environment; the probe is not a sandbox.
 
 ## Probe report privacy
 
