@@ -13,6 +13,7 @@ Own black-box regression tests for the package's public JSON-emitting scripts.
 
 - Assert observable JSON output, standard-error behavior, and process exit status rather than helper implementation details.
 - Use only the Python standard library so package verification remains zero-install.
+- Redaction tests use synthetic secrets only and check both stdout and file reports, including command metadata and failure details.
 
 ## Work Guidance
 

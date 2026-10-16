@@ -43,6 +43,7 @@ agent-first-cli-skill/
     afcli_schema_lint.py
   tests/
     test_afcli_schema_lint.py
+    test_probe_redaction.py
 ```
 
 ## Typical uses
@@ -77,6 +78,12 @@ python scripts/afcli_probe.py --cmd "python -m mytool" --matrix examples/probe_m
 ```
 
 The scripts use only the Python standard library.
+
+## Probe report privacy
+
+Probe reports redact nested JSON credential fields, common credential text/header forms, private-key blocks, and secret-valued arguments (`--token value` or `--token=value`). Values learned from sensitive environment variables, matrix environment overrides, arguments, and captured JSON are removed throughout the report, including names, issue details, and command metadata. Redaction precedes preview truncation and applies to stdout and `--out` reports without changing the command executed.
+
+Register nonstandard credential flags with repeatable `--sensitive-option=--login` (or `--sensitive-option=-p`). Redaction is best-effort for arbitrary text: unnamed positional credentials, custom field names, encoded values, and unknown log formats cannot reliably be identified. Avoid placing secrets there and inspect reports before sharing; use `--max-capture 0` when output previews are inappropriate.
 
 ## Verification
 
