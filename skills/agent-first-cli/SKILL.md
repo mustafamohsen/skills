@@ -122,7 +122,7 @@ Error shape:
 
 ## Included scripts
 
-Use scripts only when they advance the current task.
+Use scripts only when they advance the current task. Every probe test must declare `effects` as `read-only` or `mutating`. Before any mutation probe—including negative confirmation and plan/dry-run safety tests—follow the isolation requirements in `tasks/audit_existing_cli.md`. Mutating matrices require `--allow-mutations --isolated-environment <description>`; these attest to isolation, not create it.
 
 ```bash
 # Probe a live CLI against a small matrix of commands.

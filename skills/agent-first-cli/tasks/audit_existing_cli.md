@@ -66,7 +66,11 @@ Critical criteria:
 
 ## Step 4: Probe the live CLI
 
-Create a probe matrix. Start from `examples/probe_matrix.example.json`, then adapt commands.
+Before executing anything, inspect the implementation/help and classify each invocation with `effects: "read-only"` or `effects: "mutating"`. Start from `examples/probe_matrix.example.json`, but verify its read-only declarations for the target CLI; command names are not proof of safety. Treat unknown behavior, plan/dry-run commands under audit, and apply-without-confirmation tests as mutating until their safety is established.
+
+Mutation tests require disposable resources in an explicitly isolated environment: use test-only credentials, configuration/profile, endpoints, and working directory; exclude production accounts and mounted production data. Obtain authorization for the test mutations. A missing confirmation flag or expected error does not prevent an unsafe CLI from executing.
+
+If isolation cannot be verified, stop mutation testing and report that limitation. Restrict execution to verified read-only invocations; inspect the remaining paths statically. The probe's gate is an attestation, not an OS/network sandbox, and it still inherits the launching environment.
 
 Run:
 
@@ -74,7 +78,16 @@ Run:
 python scripts/afcli_probe.py --cmd "tool" --matrix path/to/probe_matrix.json --out probe-report.json
 ```
 
-Probe at least:
+For an authorized mutation matrix, run from that verified environment:
+
+```bash
+python scripts/afcli_probe.py --cmd "tool" --matrix path/to/mutation_matrix.json \
+  --allow-mutations --isolated-environment "disposable-local-fixture" --out probe-report.json
+```
+
+Both flags are required; preflight checks the entire matrix before launching any command. Missing/invalid `effects` returns JSON `SAFETY_CLASSIFICATION_REQUIRED` (exit 2); unauthorized mutations return `UNSAFE_OPERATION` (exit 6).
+
+Probe the following only when their execution is permitted:
 
 - `version --output json`
 - `capabilities --output json`
